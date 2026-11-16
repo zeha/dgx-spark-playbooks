@@ -10,12 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone ComfyUI, pinned so rebuilds don't drift onto untested upstream changes.
-RUN git clone --branch v0.33.2 https://github.com/comfyanonymous/ComfyUI.git .
+#RUN git clone --branch v0.33.2 https://github.com/comfyanonymous/ComfyUI.git .
+RUN git clone --branch v0.45.2 https://github.com/comfyanonymous/ComfyUI.git .
 
 # Install ComfyUI dependencies WITHOUT overwriting NGC-optimized PyTorch.
 # Strip torch/torchvision/torchaudio lines from ComfyUI requirements (pip must not replace NGC wheels).
 RUN sed -i '/^torch\b/d; /^torchvision\b/d; /^torchaudio\b/d; /^nvidia/d' requirements.txt && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt -r manager_requirements.txt
 
 # Provide an import-only torchaudio stub. NGC PyTorch 26.02 exports custom
 # ABI symbols (e.g. torch_dtype_float4_e2m1fn_x2) that PyPI's torchaudio
@@ -55,7 +56,8 @@ RUN cd custom_nodes && \
     git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git && \
     git clone https://github.com/cubiq/ComfyUI_IPAdapter_plus.git && \
     git clone https://github.com/lum3on/comfyui_HiDream-Sampler.git && \
-    git clone https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git
+    git clone https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git && \
+    git clone https://github.com/slahiri/ComfyUI-Workflow-Models-Downloader.git
 
 # Install custom node dependencies.
 #
@@ -78,6 +80,9 @@ RUN for req in custom_nodes/*/requirements.txt; do \
       [ -f "$req" ] && pip install --no-cache-dir -r "$req" || true; \
     done
 
+RUN mkdir -p user/__manager
+COPY assets/config.ini /opt/ComfyUI/user/__manager/
+
 EXPOSE 8188
 
-CMD ["python", "main.py", "--listen", "0.0.0.0", "--port", "8188"]
+CMD ["python", "main.py", "--enable-manager", "--listen", "0.0.0.0", "--port", "8188"]
